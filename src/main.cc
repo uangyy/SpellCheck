@@ -21,6 +21,10 @@
 #include <cstring>
 #include <sys/epoll.h>
 using namespace std;
+
+//控制cache的锁
+pthread_mutex_t cache_lock;
+Cache cache;
 #define ERR_EXIT(m)\
     do { \
         perror(m); \
@@ -37,13 +41,28 @@ ifstream &open_file(ifstream &is, const string &file)
     return is;
 }
 
-//线程函数
+//查询线程函数
 void *func(void *arg)
 {
     Task &task = *(Task *)arg;
     cout << "i am work func!" << endl;
     task.execute();
     return NULL;
+}
+
+//cache线程函数
+void *cache_func(void *arg)
+{
+    //每隔一定的时间想cache文件中写入，并且重新读出来
+    while(1)
+    {
+        sleep(30);
+        pthread_mutex_lock(&cache_lock);
+        cache.write_back();
+        cache.get_cache();
+        pthread_mutex_unlock(&cache_lock);
+        cout << "update over" << endl;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -82,6 +101,24 @@ int main(int argc, char *argv[])
     //生成索引
     myCon.index_to_map();
     is.close();
+
+
+
+    if(pthread_mutex_init(&cache_lock, NULL) != 0)
+        ERR_EXIT("init a mutex");
+    //读取cache
+    string cache_path = myCon.get_cachePath();
+    cache.set(cache_path, cache_lock); //设置cache的路径 和锁
+    cache.get_cache();          //读取cache文件
+
+    //新启动一个线程
+    pthread_t cache_thread;
+    if(pthread_create(&cache_thread, NULL, cache_func, NULL) != 0)
+    {
+        ERR_EXIT("create a thread");
+    }
+    cout << "&cache: " << &cache << endl;
+
 
     //创建一个线程池
     if(tpool_create(10) != 0)
@@ -172,12 +209,14 @@ int main(int argc, char *argv[])
                     }
                     cout << "recv msg: " << recvbuf ;
                     //封装一个Task对象，并把这个对象加入到线程池中去
-                    Task *task = new Task(recvbuf, fd, myCon.get_vec(), myCon.get_index());
+                    Task *task = new Task(recvbuf, fd, myCon.get_vec(), myCon.get_index(), cache);
                     tpool_add_work(func, (void *)task);
                 }
             }
         }
     }
+    pthread_mutex_destroy(&cache_lock);
+    pthread_join(cache_thread, NULL);
     close(efd);
     close(listenfd);
     tpool_destroy();

@@ -13,6 +13,7 @@
 #include <set>
 #include <vector>
 #include <sstream>
+#include <pthread.h>
 
 using namespace std;
 
@@ -49,40 +50,59 @@ void Task::write2client()
 //版本一：没有chache
 void Task::execute()
 {
-    //execute是根据vector<pair<string, int> > 和 map<string, set<int> >中的内容去查询编辑距离小于3的单词
-
-
-    string::iterator str_ite = m_express.begin();   //用来遍历查询单词的迭代器
-    set<int>::iterator set_ite;                     //用来遍历每一个字母所在单词的下标的迭代器
-    set<int>::iterator set_end;
-
-    while(str_ite != m_express.end())
+    cout << "m_cache: " << &m_cache << endl;
+    string re;
+    //第一步：首先查询cache中的内容，看看是否命中，命中直接返回结果
+    m_cache.lock();
+    if((re = m_cache.in_cache(m_express)) != "")
     {
-        string ch = "";
-        ch += tolower(*str_ite);
-        set_ite = (*m_index)[ch].begin();   //获得（比如字母a）的所在m_vec的下标
-        set_end = (*m_index)[ch].end();
-        while(set_ite != set_end)
-        {
-            int dis;
-            if((dis = dist(m_express, (*m_vec)[*set_ite].first)) < 3)
-            {
-                //编辑距离小于给定值，将这个查找的单词封装成一个MyResult的对象，装入优先级队列中去
-                Result ret;
-                ret.word_ = (*m_vec)[*set_ite].first;
-                ret.ifreq_ = (*m_vec)[*set_ite].second;
-                ret.idist_ = dis;
-                //cout << m_express << ", " << ret.word_ << ": " << dist(m_express, ret.word_);
-                //cout << " ret.word: " << ret.word_ << " ret.dist: " << ret.idist_ << " ret.freq: " << ret.ifreq_ << endl; 
-                m_result.push(ret);
-            }
-            set_ite++;
-        }
-        str_ite++;
+        cout << "bingo!" << endl;
+        //命中
+        m_cache.unlock();
     }
+    else
+    {
+        m_cache.unlock();
+        //execute是根据vector<pair<string, int> > 和 map<string, set<int> >中的内容去查询编辑距离小于3的单词
+        string::iterator str_ite = m_express.begin();   //用来遍历查询单词的迭代器
+        set<int>::iterator set_ite;                     //用来遍历每一个字母所在单词的下标的迭代器
+        set<int>::iterator set_end;
 
-    //从优先级队列中取出前十个写会给客户端
-    string re = handle_result(m_result);
+        while(str_ite != m_express.end())
+        {
+            string ch = "";
+            ch += tolower(*str_ite);
+            set_ite = (*m_index)[ch].begin();   //获得（比如字母a）的所在m_vec的下标
+            set_end = (*m_index)[ch].end();
+            while(set_ite != set_end)
+            {
+                int dis;
+                if((dis = dist(m_express, (*m_vec)[*set_ite].first)) < 3)
+                {
+                    //编辑距离小于给定值，将这个查找的单词封装成一个MyResult的对象，装入优先级队列中去
+                    Result ret;
+                    ret.word_ = (*m_vec)[*set_ite].first;
+                    ret.ifreq_ = (*m_vec)[*set_ite].second;
+                    ret.idist_ = dis;
+                    //cout << m_express << ", " << ret.word_ << ": " << dist(m_express, ret.word_);
+                    //cout << " ret.word: " << ret.word_ << " ret.dist: " << ret.idist_ << " ret.freq: " << ret.ifreq_ << endl; 
+                    m_result.push(ret);
+                }
+                set_ite++;
+            }
+            str_ite++;
+        }
+
+        //从优先级队列中取出前十个写会给客户端
+        re = handle_result(m_result);
+        string line_to_cache = m_express;
+        line_to_cache += " ";
+        line_to_cache += re;
+        m_cache.lock();
+        m_cache.add_to_cache(line_to_cache);
+        cout << "add to cache" << endl;
+        m_cache.unlock();
+    }
     //cout << "execute fd is: " << &m_fd << endl;
     int nwrite;
     if(re.size() == 0)

@@ -45,6 +45,12 @@ public:
     {
         return &m_index;
     }
+
+    //获得cache的地址
+    string get_cachePath()
+    {
+        return m_map["cachePath"];
+    }
 private:
     //存储config的文件路径
     //string m_file;

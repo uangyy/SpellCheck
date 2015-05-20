@@ -8,6 +8,7 @@
 #define MYTASK_H
 
 #include "myConfig.h"
+#include "myCache.h"
 #include <iostream>
 #include <string>
 #include <sys/types.h>
@@ -23,9 +24,6 @@
 #include <stack>
 #include <queue>
 using namespace std;
-
-class Cache;
-class MyDict;
 
 typedef struct MyResult
 {
@@ -55,15 +53,15 @@ struct MyCompare
 class Task
 {
 public:
-    Task(const string &expr, int sockfd, vector<pair<string, int> > *vec, map<string, set<int> > *index)
-        :m_express(expr), m_fd(sockfd), m_vec(vec), m_index(index)
+    Task(const string &expr, int sockfd, vector<pair<string, int> > *vec, map<string, set<int> > *index, Cache &cache)
+        :m_express(expr), m_fd(sockfd), m_vec(vec), m_index(index), m_cache(cache)
     {
         //要取出单词最后一个换行！
         if(m_express[m_express.size() - 1] == '\n')
             m_express.resize(m_express.size() - 1);
     }
-    Task(const char *expr, int sockfd, vector<pair<string, int> > *vec, map<string, set<int> > *index)
-        :m_express(expr), m_fd(sockfd), m_vec(vec), m_index(index)
+    Task(const char *expr, int sockfd, vector<pair<string, int> > *vec, map<string, set<int> > *index, Cache &cache)
+        :m_express(expr), m_fd(sockfd), m_vec(vec), m_index(index), m_cache(cache)
     {
         //要取出单词最后一个换行！
         if(m_express[m_express.size() - 1] == '\n')
@@ -88,6 +86,7 @@ private:
     vector<pair<string, int> > *m_vec;   //指向保存数据词典的指针
     map<string, set<int> > *m_index;    //的指针
     priority_queue<MyResult, vector<MyResult>, MyCompare> m_result; //保存查询结果的优先级队列
+    Cache &m_cache;    //一个cache
 };
 
 #endif
