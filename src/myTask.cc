@@ -51,17 +51,18 @@ void Task::write2client()
 void Task::execute()
 {
     cout << "m_cache: " << &m_cache << endl;
-    string re;
+    string re = "";
     //第一步：首先查询cache中的内容，看看是否命中，命中直接返回结果
     m_cache.lock();
-    if((re = m_cache.in_cache(m_express)) != "")
+    if(m_express.size() != 0 && (re = m_cache.in_cache(m_express)) != "")
     {
         cout << "bingo!" << endl;
         //命中
         m_cache.unlock();
     }
-    else
+    else if(m_express.size() != 0)
     {
+        cout << "here" << endl;
         m_cache.unlock();
         //execute是根据vector<pair<string, int> > 和 map<string, set<int> >中的内容去查询编辑距离小于3的单词
         string::iterator str_ite = m_express.begin();   //用来遍历查询单词的迭代器
@@ -108,12 +109,13 @@ void Task::execute()
     if(re.size() == 0)
     {
         //结果为空，写回空格
-        nwrite = write(m_fd, " ", 1);
+        re = " ";
+        nwrite = write(m_fd, re.c_str(), re.size());
     }
     else
     {
         //结果不为空，正常写回
-        write(m_fd, re.c_str(), re.size());
+        nwrite = write(m_fd, re.c_str(), re.size());
     }
     //cout << "&task: " << this << "  ";
     cout << "fd: " << this ->m_fd << "nwrite: " << nwrite << "  ret: " << re << endl;
@@ -172,6 +174,7 @@ string handle_result(priority_queue<MyResult, vector<MyResult>, MyCompare> &m_re
         result += *re_ite;
         result += " ";
     }
+    result.resize(result.size() - 1);
     return result;
 }
 

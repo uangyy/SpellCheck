@@ -209,8 +209,25 @@ int main(int argc, char *argv[])
                     }
                     cout << "recv msg: " << recvbuf ;
                     //封装一个Task对象，并把这个对象加入到线程池中去
-                    Task *task = new Task(recvbuf, fd, myCon.get_vec(), myCon.get_index(), cache);
-                    tpool_add_work(func, (void *)task);
+                    string recv = recvbuf;
+                    if(recvbuf[0] == '\n')
+                    {
+                        cout << "卧槽" << endl;
+                        recv = "";
+                        int nwrite = write(fd, " ", 1);
+                        if(nwrite == -1)
+                        {
+                            struct epoll_event ev;
+                            ev.data.fd = fd;
+                            ret = epoll_ctl(efd, EPOLL_CTL_DEL, fd, &ev);
+                            close(fd);
+                        }
+                    }
+                    else
+                    {
+                        Task *task = new Task(recv, fd, myCon.get_vec(), myCon.get_index(), cache);
+                        tpool_add_work(func, (void *)task);
+                    }
                 }
             }
         }
