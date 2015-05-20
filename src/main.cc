@@ -207,11 +207,11 @@ int main(int argc, char *argv[])
                             ERR_EXIT("epoll_ctl_del");
                         continue;
                     }
-                    cout << "recv msg: " << recvbuf ;
                     //封装一个Task对象，并把这个对象加入到线程池中去
                     string recv = recvbuf;
                     if(recvbuf[0] == '\n')
                     {
+                        cout << "recv msg: " << recvbuf ;
                         cout << "卧槽" << endl;
                         recv = "";
                         int nwrite = write(fd, " ", 1);
@@ -225,6 +225,8 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
+                        recv.resize(recv.size() - 1);
+                        cout << "recv msg: " << recv << " recv.size(): " << recv.size() << endl;
                         Task *task = new Task(recv, fd, myCon.get_vec(), myCon.get_index(), cache);
                         tpool_add_work(func, (void *)task);
                     }
